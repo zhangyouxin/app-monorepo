@@ -11,6 +11,7 @@ import {
   Stack,
   TextArea,
   YStack,
+  Dialog,
 } from '@onekeyhq/components';
 import type { IPageNavigationProp } from '@onekeyhq/components/src/layouts/Navigation';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
@@ -25,6 +26,7 @@ import { AccountSelectorProviderMirror } from '../../../components/AccountSelect
 import useAppNavigation from '../../../hooks/useAppNavigation';
 import useCookie from '../../../hooks/useCookie';
 import { useActiveAccount } from '../../../states/jotai/contexts/accountSelector';
+import { presetNetworksMap } from '@onekeyhq/shared/src/config/presetNetworks';
 
 const useStorage = platformEnv.isNative
   ? (key: EAppSyncStorageKeys, initialValue?: boolean) => {
@@ -96,7 +98,6 @@ function TestRefreshCmp() {
   return <Button>TestRefresh: {accountName}</Button>;
 }
 const TestRefresh = memo(TestRefreshCmp);
-
 const TabDeveloper = () => {
   const navigation =
     useAppNavigation<IPageNavigationProp<ITabDeveloperParamList>>();
@@ -104,6 +105,163 @@ const TabDeveloper = () => {
   // @ts-expect-error
   const [rrtStatus, changeRRTStatus] = useStorage(EAppSyncStorageKeys.rrt);
 
+  const { activeAccount } = useActiveAccount({
+    num: 0,
+  });
+  const walletId = activeAccount.wallet?.id;
+
+  return (
+    <ScrollView
+      flex={1}
+      width="100%"
+      paddingHorizontal="$5"
+      contentContainerStyle={{ paddingBottom: '$5' }}
+      gap="$5"
+    >
+      <PartContainer title="Components">
+        <Button
+          onPress={async () => {
+            if (!walletId) {
+              console.warn('No active walletId found');
+              return;
+            }
+            const batchCreateAccounts =
+              await backgroundApiProxy.serviceBatchCreateAccount.previewBatchBuildAccounts(
+                {
+                  walletId,
+                  networkId: presetNetworksMap.ckb.id,
+                  deriveType: 'default',
+                  indexes: new Array(100).fill(null).map((_, i) => i),
+                  showOnOneKey: false,
+                  saveToCache: false,
+                  isVerifyAddressAction: false,
+                },
+              );
+            const newCkbAddresses = batchCreateAccounts.accountsForCreate.map(
+              (account) => account.address,
+            );
+
+            Dialog.show({
+              title: 'Ckb Addresses',
+              description: (
+                <ul style={{ maxHeight: 500, overflow: 'auto' }}>
+                  {newCkbAddresses.map((address, idx) => (
+                    <li key={address}>
+                      <SizableText size={8}>
+                        {idx + 1}. {address}
+                      </SizableText>
+                    </li>
+                  ))}
+                </ul>
+              ),
+            });
+          }}
+        >
+          show ckb addresses
+        </Button>
+      </PartContainer>
+
+      <PartContainer title="Components">
+        <Button
+          onPress={() => {
+            navigation.push(ETabDeveloperRoutes.ComponentsGallery);
+          }}
+        >
+          Gallery
+        </Button>
+      </PartContainer>
+
+      <PartContainer title="Debug Router & Tabs & List">
+        <Button
+          onPress={() => {
+            navigation.push(ETabDeveloperRoutes.DevHome);
+          }}
+        >
+          DevHome Page
+        </Button>
+      </PartContainer>
+
+      <PartContainer title="Debugger Signature Records">
+        <Button
+          onPress={() => {
+            navigation.push(ETabDeveloperRoutes.SignatureRecord);
+          }}
+        >
+          Signature Records
+        </Button>
+      </PartContainer>
+
+      <PartContainer title="Debug Tools">
+        <Button
+          onPress={() => {
+            if (platformEnv.isNative) {
+              (changeRRTStatus as (value: boolean) => void)(!rrtStatus);
+              alert('Please manually restart the app.');
+            } else {
+              const status = rrtStatus === '1' ? '0' : '1';
+              (changeRRTStatus as (value: string) => void)(status);
+              if (platformEnv.isRuntimeBrowser) {
+                if (status === '0') {
+                  localStorage.removeItem(
+                    '$$OnekeyReactRenderTrackerEnabled',
+                  );
+                } else {
+                  localStorage.setItem(
+                    '$$OnekeyReactRenderTrackerEnabled',
+                    'true',
+                  );
+                }
+              }
+              globalThis.location.reload();
+            }
+          }}
+        >
+          {platformEnv.isNative ? (
+            <>
+              {rrtStatus
+                ? 'Disabled react-render-tracker'
+                : 'Enabled react-render-tracker'}
+            </>
+          ) : (
+            <>
+              {rrtStatus === '1'
+                ? 'Disabled react-render-tracker'
+                : 'Enabled react-render-tracker'}
+            </>
+          )}
+        </Button>
+      </PartContainer>
+
+      {platformEnv.isNative ? (
+        <PartContainer title="NetworkLogger">
+          <Button
+            onPress={() => {
+              navigation.push(ETabDeveloperRoutes.NetworkLogger);
+            }}
+          >
+            NetworkLogger
+          </Button>
+        </PartContainer>
+      ) : null}
+
+      <PartContainer title="Async Import Test">
+        <Button
+          onPress={async () => {
+            const { test } = await import('./asyncImportTest');
+            test();
+          }}
+        >
+          Async Import Test
+        </Button>
+      </PartContainer>
+      <ConnectWalletConnectDapp />
+      <TestRefresh />
+      {/* <WalletConnectModalNative2 /> */}
+    </ScrollView>
+  );
+};
+
+const TabDeveloperContainer = (): React.JSX.Element => {
   return (
     <AccountSelectorProviderMirror
       config={{
@@ -113,114 +271,11 @@ const TabDeveloper = () => {
     >
       <Page>
         <Page.Body>
-          <ScrollView
-            flex={1}
-            width="100%"
-            paddingHorizontal="$5"
-            contentContainerStyle={{ paddingBottom: '$5' }}
-            gap="$5"
-          >
-            <PartContainer title="Components">
-              <Button
-                onPress={() => {
-                  navigation.push(ETabDeveloperRoutes.ComponentsGallery);
-                }}
-              >
-                Gallery
-              </Button>
-            </PartContainer>
-
-            <PartContainer title="Debug Router & Tabs & List">
-              <Button
-                onPress={() => {
-                  navigation.push(ETabDeveloperRoutes.DevHome);
-                }}
-              >
-                DevHome Page
-              </Button>
-            </PartContainer>
-
-            <PartContainer title="Debugger Signature Records">
-              <Button
-                onPress={() => {
-                  navigation.push(ETabDeveloperRoutes.SignatureRecord);
-                }}
-              >
-                Signature Records
-              </Button>
-            </PartContainer>
-
-            <PartContainer title="Debug Tools">
-              <Button
-                onPress={() => {
-                  if (platformEnv.isNative) {
-                    (changeRRTStatus as (value: boolean) => void)(!rrtStatus);
-                    alert('Please manually restart the app.');
-                  } else {
-                    const status = rrtStatus === '1' ? '0' : '1';
-                    (changeRRTStatus as (value: string) => void)(status);
-                    if (platformEnv.isRuntimeBrowser) {
-                      if (status === '0') {
-                        localStorage.removeItem(
-                          '$$OnekeyReactRenderTrackerEnabled',
-                        );
-                      } else {
-                        localStorage.setItem(
-                          '$$OnekeyReactRenderTrackerEnabled',
-                          'true',
-                        );
-                      }
-                    }
-                    globalThis.location.reload();
-                  }
-                }}
-              >
-                {platformEnv.isNative ? (
-                  <>
-                    {rrtStatus
-                      ? 'Disabled react-render-tracker'
-                      : 'Enabled react-render-tracker'}
-                  </>
-                ) : (
-                  <>
-                    {rrtStatus === '1'
-                      ? 'Disabled react-render-tracker'
-                      : 'Enabled react-render-tracker'}
-                  </>
-                )}
-              </Button>
-            </PartContainer>
-
-            {platformEnv.isNative ? (
-              <PartContainer title="NetworkLogger">
-                <Button
-                  onPress={() => {
-                    navigation.push(ETabDeveloperRoutes.NetworkLogger);
-                  }}
-                >
-                  NetworkLogger
-                </Button>
-              </PartContainer>
-            ) : null}
-
-            <PartContainer title="Async Import Test">
-              <Button
-                onPress={async () => {
-                  const { test } = await import('./asyncImportTest');
-                  test();
-                }}
-              >
-                Async Import Test
-              </Button>
-            </PartContainer>
-            <ConnectWalletConnectDapp />
-            <TestRefresh />
-            {/* <WalletConnectModalNative2 /> */}
-          </ScrollView>
+          <TabDeveloper />
         </Page.Body>
       </Page>
     </AccountSelectorProviderMirror>
   );
 };
 
-export default TabDeveloper;
+export default TabDeveloperContainer;
