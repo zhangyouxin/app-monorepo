@@ -144,15 +144,13 @@ const TabDeveloper = () => {
             Dialog.show({
               title: 'Ckb Addresses',
               description: (
-                <ul style={{ maxHeight: 500, overflow: 'auto' }}>
+                <div style={{ maxHeight: 500, fontSize: 10, overflow: 'auto' }}>
                   {newCkbAddresses.map((address, idx) => (
-                    <li key={address}>
-                      <SizableText size={8}>
-                        {idx + 1}. {address}
-                      </SizableText>
-                    </li>
+                    <div key={address}>
+                      {idx + 1}. {address}
+                    </div>
                   ))}
-                </ul>
+                </div>
               ),
             });
           }}
@@ -202,9 +200,7 @@ const TabDeveloper = () => {
               (changeRRTStatus as (value: string) => void)(status);
               if (platformEnv.isRuntimeBrowser) {
                 if (status === '0') {
-                  localStorage.removeItem(
-                    '$$OnekeyReactRenderTrackerEnabled',
-                  );
+                  localStorage.removeItem('$$OnekeyReactRenderTrackerEnabled');
                 } else {
                   localStorage.setItem(
                     '$$OnekeyReactRenderTrackerEnabled',
